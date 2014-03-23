@@ -13,13 +13,13 @@ import simplejson as json
 
 import config
 import storage
+from auth import Auth
 
 
 logger = logging.getLogger(__name__)
 
 
 class SocketReader(object):
-
     def __init__(self, fp):
         self._fp = fp
         self.handlers = []
@@ -129,8 +129,8 @@ def get_remote_ip():
 def is_ssl():
     for header in ('X-Forwarded-Proto', 'X-Forwarded-Protocol'):
         if header in flask.request.headers and \
-                flask.request.headers[header].lower() in ('https', 'ssl'):
-                    return True
+                        flask.request.headers[header].lower() in ('https', 'ssl'):
+            return True
     return False
 
 
@@ -220,10 +220,11 @@ def requires_auth(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
         if check_signature() is True or check_session() is True \
-                or check_token(kwargs) is True:
+                or check_token(kwargs) is True or Auth.check_authorization():
             return f(*args, **kwargs)
         headers = {'WWW-Authenticate': 'Token'}
         return api_error('Requires authorization', 401, headers)
+
     return wrapper
 
 
@@ -248,6 +249,7 @@ def parse_repository_name(f):
             (namespace, repository) = parts
         repository = urllib.quote_plus(repository)
         return f(namespace, repository, *args, **kwargs)
+
     return wrapper
 
 

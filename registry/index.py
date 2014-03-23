@@ -36,7 +36,7 @@ def generate_headers(namespace, repository, access):
     registry_endpoints = get_endpoints()
     # The token generated will be invalid against a real Index behind.
     token = 'Token signature={0},repository="{1}/{2}",access={3}'.format(
-            toolkit.gen_random_string(), namespace, repository, access)
+        toolkit.gen_random_string(), namespace, repository, access)
     return {'X-Docker-Endpoints': registry_endpoints,
             'WWW-Authenticate': token,
             'X-Docker-Token': token}
@@ -138,3 +138,10 @@ def put_repository_auth(namespace, repository):
 @app.route('/v1/search', methods=['GET'])
 def get_search():
     return toolkit.response({})
+
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(flask.g, '_database', None)
+    if db is not None:
+        db.close()
