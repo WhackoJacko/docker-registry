@@ -8,11 +8,11 @@ def get_db():
     db = getattr(g, '_database', None)
     if db is None:
         db = g._database = sqlite3.connect(DATABASE)
+        init()
     return db
 
 
 def query(query, args=(), one=False):
-    print(query())
     cur = get_db().execute(query, args)
     rv = cur.fetchall()
     cur.close()
@@ -23,4 +23,3 @@ def init():
     query('create table if not exists users(username varchar(256), password varchar(32));')
 
 
-init()
