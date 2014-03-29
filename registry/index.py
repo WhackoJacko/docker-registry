@@ -10,6 +10,7 @@ import storage
 import toolkit
 
 from .app import app
+from auth import Auth
 
 
 store = storage.load()
@@ -45,13 +46,19 @@ def generate_headers(namespace, repository, access):
 @app.route('/v1/users', methods=['GET', 'POST'])
 @app.route('/v1/users/', methods=['GET', 'POST'])
 def get_post_users():
+    cfg = config.load()
+    if not cfg.allow_signup:
+        return toolkit.api_error('Signup is not allowed', 400)
     if flask.request.method == 'GET':
         return toolkit.response('OK', 200)
     try:
-        json.loads(flask.request.data)
+        data = json.loads(flask.request.data)
+        if Auth.signup(data):
+            return toolkit.response('User Created', 201)
+        else:
+            return toolkit.response('User Not Created', 400)
     except json.JSONDecodeError:
         return toolkit.api_error('Error Decoding JSON', 400)
-    return toolkit.response('User Created', 201)
 
 
 @app.route('/v1/users/<username>/', methods=['PUT'])
@@ -140,8 +147,33 @@ def get_search():
     return toolkit.response({})
 
 
-@app.teardown_appcontext
-def close_connection(exception):
+@app.after_request
+def log_request(response):
+    cfg = config.load()
+    if cfg.log_requests:
+        logger = logging.getLogger(u'request-loger')
+        logger.addHandler(logging.FileHandler(u'requests.log'))
+        data = {
+            u'request': {
+                u'path': flask.request.path,
+                u'data': flask.request.data,
+                u'headers': unicode(flask.request.headers)
+            },
+            u'response': {
+                u'content': response.data,
+                u'headers': unicode(response.headers)
+            }
+        }
+        import json
+
+        with open(u'requests.log', u'a') as f:
+            f.write(json.dumps(data, indent=4) + u'\r')
+    return response
+
+
+@app.after_request
+def close_connection(response):
     db = getattr(flask.g, '_database', None)
     if db is not None:
         db.close()
+    return response
