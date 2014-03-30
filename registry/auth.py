@@ -1,6 +1,10 @@
 import flask
 import hashlib
 import base64
+import uuid
+import re
+import boto
+boto.s3
 
 from .database import query
 
@@ -11,6 +15,15 @@ logger.addHandler(logging.FileHandler(u'auth.log'))
 
 
 class Auth(object):
+    @staticmethod
+    def query(*args, **kwargs):
+        return query(*args, **kwargs)
+
+    @classmethod
+    def signin(cls, data):
+        user = User(username=data[u'username'], password=data[u'password'])
+        return user.is_valid()
+
     @classmethod
     def signup(cls, data):
         user = User(username=data[u'username'], password=data[u'password'])
@@ -18,13 +31,31 @@ class Auth(object):
 
     @classmethod
     def check_authorization(self):
-        authorization_token = flask.request.headers.get(u'Authorization', u'').split(u' ').pop()
-        if authorization_token:
+        authorization_header = flask.request.headers.get(u'Authorization', u'')
+        if authorization_header.startswith(u'Basic'):
+            authorization_token = authorization_header.split(u' ').pop()
             authorization_token_decoded = base64.b64decode(authorization_token)
             username, password = authorization_token_decoded.split(u':')
             if username and password:
                 user = User(username=username, password=password)
                 return user.is_valid()
+        return False
+
+    @classmethod
+    def generate_token(cls):
+        token = uuid.uuid1().get_hex()
+        query(u'insert into tokens (token) VALUES (?);', args=(token,))
+        return token
+
+    @classmethod
+    def validate_token(cls):
+        authorization_header = flask.request.headers.get(u'Authorization', u'')
+        p = re.compile(u'.*signature=(.*?),')
+        res = p.match(authorization_header)
+        if res:
+            token = res.groups()[0]
+            rv = query(u'select * from tokens where token=?', args=(token,))
+            return len(rv) > 0
         return False
 
 

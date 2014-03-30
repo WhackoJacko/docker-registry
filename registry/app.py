@@ -41,6 +41,38 @@ def after_request(response):
     return response
 
 
+@app.after_request
+def log_request(response):
+    cfg = config.load()
+    if cfg.log_requests:
+        logger = logging.getLogger(u'request-loger')
+        logger.addHandler(logging.FileHandler(u'requests.log'))
+        data = {
+            u'request': {
+                u'path': flask.request.path,
+                u'data': flask.request.data,
+                u'headers': unicode(flask.request.headers)
+            },
+            u'response': {
+                u'content': response.data,
+                u'headers': unicode(response.headers)
+            }
+        }
+        import json
+
+        with open(u'requests.log', u'a') as f:
+            f.write(json.dumps(data, indent=4) + u'\r')
+    return response
+
+
+@app.after_request
+def close_connection(response):
+    db = getattr(flask.g, '_database', None)
+    if db is not None:
+        db.close()
+    return response
+
+
 def init():
     # Configure the secret key
     if not cfg.secret_key:
@@ -77,7 +109,7 @@ def init():
                           release_stage=cfg.flavor,
                           notify_release_stages=[cfg.flavor],
                           app_version=VERSION
-                          )
+        )
         bugsnag.flask.handle_exceptions(app)
 
 

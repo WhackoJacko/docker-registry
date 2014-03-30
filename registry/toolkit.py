@@ -219,7 +219,7 @@ def parse_content_signature(s):
 def requires_auth(f):
     @functools.wraps(f)
     def wrapper(*args, **kwargs):
-        if Auth.check_authorization():
+        if Auth.check_authorization() or Auth.validate_token():
             return f(*args, **kwargs)
         headers = {'WWW-Authenticate': 'Token'}
         return api_error('Requires authorization', 401, headers)

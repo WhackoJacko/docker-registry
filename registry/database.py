@@ -24,4 +24,8 @@ def query(query_str, args=(), one=False):
 
 
 def init():
-    query(u'create table if not exists users(username varchar(256), password varchar(32));')
+    query(
+        u'create table if not exists users(id integer primary key '
+        u'autoincrement, username varchar(256), password varchar(32));'
+    )
+    query(u'create table if not exists tokens(token varchar(32));')
